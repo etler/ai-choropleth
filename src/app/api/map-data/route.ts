@@ -1,6 +1,14 @@
 import { ZodError, z } from "zod"
-import { Configuration, OpenAIApi } from "openai"
+import { Configuration, CreateChatCompletionResponse, OpenAIApi } from "openai"
 import { NextResponse } from "next/server"
+import getCache from "@/utils/getCache"
+
+type Models = "gpt-4" | "gpt-3.5-turbo"
+const model: Models = "gpt-4"
+
+const cache = getCache()
+
+const promiseMap: Record<string, CreateChatCompletionResponse> = {}
 
 const configuration = new Configuration({
   apiKey: process.env.OPENAI_API_KEY,
@@ -50,61 +58,75 @@ const getValueSchema = (schema: RequestSchema["schema"]) => {
 
 export const POST = async (request: Request) => {
   try {
-    const { question, country, schema } = requestSchema.parse(await request.json())
+    const requestJson = await request.json()
+    const queryKey = model + JSON.stringify(requestJson).replace(/\W/g, "").toLowerCase()
+    const cachedResponse = await cache.get(queryKey)
+    if (cachedResponse) {
+      return NextResponse.json(JSON.parse(cachedResponse))
+    }
+    const { question, country, schema } = requestSchema.parse(requestJson)
     const valueSchema = getValueSchema(schema)
-    const chatCompletion = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo",
-      temperature: 0,
-      messages: [
-        {
-          role: "system",
-          content: `
+    const chatCompletionPromise =
+      promiseMap[queryKey] ||
+      openai
+        .createChatCompletion({
+          model,
+          temperature: 0,
+          messages: [
+            {
+              role: "system",
+              content: `
             Given a user query, call the given function with an answer from your internal knowledge tailored to the country.
             If the answer is not applicable or cannot be answered reliably you MUST return null for the value
           `,
-        },
-        { role: "user", content: question },
-      ],
-      functions: [
-        {
-          name: "set_country_datum",
-          description: "Return internal knowledge about a country",
-          parameters: {
-            type: "object",
-            properties: {
-              country: {
-                type: "string",
-                enum: [country],
-                description: "The country name for the country data being returned",
-              },
-              value: {
-                anyOf: [
-                  {
-                    type: "null",
-                    description: "JSON null value if there is no answer or unsure",
+            },
+            { role: "user", content: question },
+          ],
+          functions: [
+            {
+              name: "set_country_datum",
+              description: "Return internal knowledge about a country",
+              parameters: {
+                type: "object",
+                properties: {
+                  country: {
+                    type: "string",
+                    enum: [country],
+                    description: "The country name for the country data being returned",
                   },
-                  valueSchema,
-                ],
-              },
-              note: {
-                type: "string",
-                description: "Any special information to note about the answer",
+                  value: {
+                    anyOf: [
+                      {
+                        type: "null",
+                        description: "JSON null value if there is no answer or unsure",
+                      },
+                      valueSchema,
+                    ],
+                  },
+                  note: {
+                    type: "string",
+                    description: "Any special information to note about the answer",
+                  },
+                },
+                required: ["country", "value", "note"],
               },
             },
-            required: ["country", "value", "note"],
-          },
-        },
-      ],
-    })
+          ],
+        })
+        .then((response) => response.data)
+    promiseMap[queryKey] = chatCompletionPromise
+    const chatCompletion = await chatCompletionPromise
     try {
       const data = responseSchema.parse(
         JSON.parse(
-          chatCompletion.data.choices[0].message?.function_call?.arguments?.replace(
+          chatCompletion.choices[0].message?.function_call?.arguments?.replace(
             /(\d+)_(\d+)/,
             "$1$2"
           ) ?? "null"
         )
       )
+      await cache.set(queryKey, JSON.stringify(data))
+      delete promiseMap[queryKey]
       return NextResponse.json(data)
     } catch (error: unknown) {
       if (error instanceof ZodError) {

@@ -1,6 +1,9 @@
 import { ZodError, z } from "zod"
 import { Configuration, OpenAIApi } from "openai"
 import { NextResponse } from "next/server"
+import getCache from "@/utils/getCache"
+
+const cache = getCache()
 
 const configuration = new Configuration({
   apiKey: process.env.OPENAI_API_KEY,
@@ -23,9 +26,14 @@ export type ResponseSchema = z.infer<typeof responseSchema>
 
 export const POST = async (request: Request) => {
   try {
-    const { question } = requestSchema.parse(await request.json())
+    const requestJson = await request.json()
+    const cachedResponse = await cache.get(JSON.stringify(requestJson))
+    if (cachedResponse) {
+      return NextResponse.json(JSON.parse(cachedResponse))
+    }
+    const { question } = requestSchema.parse(requestJson)
     const chatCompletion = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4",
       temperature: 0,
       messages: [
         {
@@ -67,6 +75,7 @@ export const POST = async (request: Request) => {
       const data = responseSchema.parse(
         JSON.parse(chatCompletion.data.choices[0].message?.function_call?.arguments ?? "null")
       )
+      await cache.set(JSON.stringify(requestJson), JSON.stringify(data))
       return NextResponse.json(data)
     } catch (error: unknown) {
       if (error instanceof ZodError) {
