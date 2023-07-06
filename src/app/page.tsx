@@ -1,95 +1,100 @@
-import Image from 'next/image'
-import styles from './page.module.css'
+"use client"
+
+import styles from "./page.module.css"
+import generateMap, { Datum } from "@/utils/generateMap"
+import { FormEventHandler, cache, useEffect, useRef, useState } from "react"
+import { QueryClient, QueryClientProvider, useQueries, useQuery } from "@tanstack/react-query"
+import world from "@/utils/world.json"
+import { ResponseSchema } from "@/app/api/map-data/route"
+
+const countries = world.objects.countries.geometries.map((geometry) => geometry.properties.name)
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+    },
+  },
+})
 
 export default function Home() {
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>src/app/page.tsx</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
-
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore the Next.js 13 playground.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+    <QueryClientProvider client={queryClient}>
+      <main className={styles.main}>
+        <Container />
+      </main>
+    </QueryClientProvider>
   )
+}
+
+export const Container: React.FC = () => {
+  const [question, setQuestion] = useState<string | undefined>()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
+    // Prevent the browser from reloading the page
+    event.preventDefault()
+
+    setQuestion(inputRef.current?.value)
+  }
+  return (
+    <>
+      <form onSubmit={handleSubmit}>
+        <label>
+          Question: <input name="question" ref={inputRef} />
+        </label>
+        <button type="submit">Start</button>
+      </form>
+      <Map question={question} />
+    </>
+  )
+}
+
+const fetchCountryAnswer = cache(
+  async (question: string, country: string): Promise<ResponseSchema> => {
+    const body = { question, country }
+    const response = await fetch("/api/map-data", { method: "POST", body: JSON.stringify(body) })
+    return await response.json()
+  }
+)
+
+interface MapProps {
+  question?: string
+}
+
+const Map: React.FC<MapProps> = ({ question }: MapProps) => {
+  const results = useQueries({
+    queries: question
+      ? countries.map((country) => ({
+          queryKey: [question, country] as const,
+          queryFn: () => fetchCountryAnswer(question, country),
+        }))
+      : [],
+  })
+  const data: Datum[] = results.map((result, index) => {
+    const country = countries[index]
+    switch (result.status) {
+      case "success":
+        const { value } = result.data
+        return { country, value: value ?? NaN }
+      case "loading":
+        return { country, value: "loading" }
+      case "error":
+        return { country, value: "error" }
+    }
+  })
+
+  const chartRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const map = generateMap(question, data)
+    const chart = chartRef.current
+    if (map) {
+      chart?.appendChild(map)
+    }
+    return () => {
+      if (map) {
+        chart?.removeChild(map)
+      }
+    }
+  }, [chartRef, question, data])
+  return <div ref={chartRef}></div>
 }

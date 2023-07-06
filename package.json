@@ -9,14 +9,28 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@tanstack/react-query": "^4.29.19",
+    "@types/d3": "^7.4.0",
+    "@types/d3-geo": "^3.0.3",
+    "@types/geojson": "^7946.0.10",
     "@types/node": "20.3.3",
     "@types/react": "18.2.14",
     "@types/react-dom": "18.2.6",
+    "@types/topojson": "^3.2.3",
+    "@types/topojson-client": "^3.1.1",
+    "ai": "^2.1.14",
+    "d3": "^7.8.5",
+    "d3-geo": "^3.1.0",
     "eslint": "8.44.0",
     "eslint-config-next": "13.4.8",
+    "geojson": "^0.5.0",
     "next": "13.4.8",
+    "openai": "^3.3.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "typescript": "5.1.6"
+    "topojson": "^3.0.2",
+    "topojson-client": "^3.1.0",
+    "typescript": "5.1.6",
+    "zod": "^3.21.4"
   }
 }
