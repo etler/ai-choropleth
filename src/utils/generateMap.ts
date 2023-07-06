@@ -9,13 +9,15 @@ import { RequestSchema as MapDataRequestSchema } from "@/app/api/map-data/route.
 
 // @ts-ignore
 const world = worldJson as Topology
+// @ts-ignore
+const countrymesh = topojson.mesh(world, world.objects.countries, (a, b) => a !== b)
 
 const countries = topojson.feature(world, world.objects.countries) as GeoJson.FeatureCollection<
   GeoJson.Point,
   GeoJson.GeoJsonProperties
 >
-// @ts-ignore
-const countrymesh = topojson.mesh(world, world.objects.countries, (a, b) => a !== b)
+
+const numberFormatter = new Intl.NumberFormat()
 
 export type Datum = {
   country: string
@@ -135,6 +137,8 @@ const generateMap = (
           ? "Error"
           : Number.isNaN(value)
           ? "N/A"
+          : typeof value === "number"
+          ? numberFormatter.format(value)
           : value
       return `${d.properties?.name}\n${displayValue}\n${note}`
     })
