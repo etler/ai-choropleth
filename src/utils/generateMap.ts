@@ -50,7 +50,7 @@ const generateMap = (
     data.map(({ country, value }) => [country, typeof value === "number" ? value : NaN])
   )
   const extent = d3.extent(valuemap.values()).map((value) => value ?? NaN)
-  const color = d3.scaleSequential(extent, d3.interpolateYlGnBu)
+  const color = d3.scaleSequential(extent, d3.interpolateGnBu)
 
   // Create the container SVG.
   const svg = d3
@@ -90,7 +90,7 @@ const generateMap = (
         case "loading":
           return "#e5e5e5"
         case "error":
-          return "#03071e"
+          return "#540b0e"
         case NaN:
           return "#14213d"
         case true:

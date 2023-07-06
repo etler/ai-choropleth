@@ -54,14 +54,19 @@ export const Container: React.FC = () => {
   }
   return (
     <>
-      <form onSubmit={handleSubmit}>
-        <label>
-          Question: <input name="question" ref={inputRef} />
-        </label>
-        <button type="submit">Start</button>
+      <form className={styles.form} onSubmit={handleSubmit}>
+        <input
+          className={styles.question}
+          name="question"
+          placeholder="Question the world"
+          ref={inputRef}
+        />
+        <button className={styles.button} type="submit">
+          Start
+        </button>
       </form>
       <Map question={question} model={model} />
-      <form className={styles.selector}>
+      <form className={styles.form}>
         <label className={styles.option}>
           <input
             type="radio"

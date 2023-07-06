@@ -2,12 +2,39 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 6rem;
+  padding: 4rem 1rem;
   min-height: 100vh;
 }
-.selector {
+.question {
+  border-radius: 20px;
+  height: 40px;
+  border: none;
+  color: #666;
+  padding: 10px 20px;
+  font-weight: bold;
+  flex-grow: 1;
+  flex-shrink: 1;
+  flex-basis: 100%;
+}
+.question::placeholder {
+  color: #bbb;
+}
+.button {
+  border-radius: 20px;
+  height: 40px;
+  border: none;
+  padding: 10px 20px;
+  color: white;
+  background-color: #023047;
+  font-weight: bold;
+}
+.form {
+  width: 600px;
+  max-width: 100%;
   display: flex;
-  column-gap: 20px;
+  column-gap: 15px;
+  align-items: center;
+  justify-content: center;
 }
 .option {
   display: flex;
