@@ -88,22 +88,32 @@ const generateMap = (
         case undefined:
           return "#FFFFFF"
         case "loading":
-          return "#BBBBBB"
+          return "#e5e5e5"
         case "error":
-          return "#990000"
+          return "#03071e"
         case NaN:
-          return "#000000"
+          return "#14213d"
         case true:
-          return "#FF0000"
+          return "#06d6a0"
         case false:
-          return "#00FF00"
+          return "#ef476f"
         default:
           if (typeof value === "number") {
             return color(value)
           }
           if (typeof value === "string" && schema?.type === "enum") {
-            debugger
-            const enumColors = ["#FF0000", "#00FF00", "#0000FF", "#FFFF", "#00FFFF"]
+            const enumColors = [
+              "#1B998B",
+              "#FF9B85",
+              "#46237A",
+              "#FFBA08",
+              "#D00000",
+              "#3185FC",
+              "#8FE388",
+              "#5D2E8C",
+              "#CBFF8C",
+              "#FF7B9C",
+            ]
             return enumColors[schema.enumChoices.indexOf(value)]
           }
           return "#000000"
@@ -124,7 +134,7 @@ const generateMap = (
           : value === "error"
           ? "Error"
           : Number.isNaN(value)
-          ? "Unknown"
+          ? "N/A"
           : value
       return `${d.properties?.name}\n${displayValue}\n${note}`
     })
