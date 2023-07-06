@@ -10,21 +10,48 @@ const openai = new OpenAIApi(configuration)
 const requestSchema = z.object({
   question: z.string(),
   country: z.string(),
+  schema: z.discriminatedUnion("type", [
+    z.object({ type: z.literal("number") }),
+    z.object({ type: z.literal("boolean") }),
+    z.object({ type: z.literal("enum"), enumChoices: z.array(z.string()) }),
+  ]),
 })
 
 export type RequestSchema = z.infer<typeof requestSchema>
 
 const responseSchema = z.object({
   country: z.string(),
-  value: z.union([z.number(), z.null()]),
+  value: z.union([z.number(), z.boolean(), z.string(), z.null()]),
   note: z.string(),
 })
 
 export type ResponseSchema = z.infer<typeof responseSchema>
 
+const getValueSchema = (schema: RequestSchema["schema"]) => {
+  switch (schema.type) {
+    case "number":
+      return {
+        type: "number",
+        description: "JSON Numeric value answering the question",
+      }
+    case "boolean":
+      return {
+        type: "boolean",
+        description: "JSON Boolean value answering the question",
+      }
+    case "enum":
+      return {
+        type: "string",
+        enum: schema.enumChoices,
+        description: "JSON enum value answering the question",
+      }
+  }
+}
+
 export const POST = async (request: Request) => {
   try {
-    const { question, country } = requestSchema.parse(await request.json())
+    const { question, country, schema } = requestSchema.parse(await request.json())
+    const valueSchema = getValueSchema(schema)
     const chatCompletion = await openai.createChatCompletion({
       model: "gpt-3.5-turbo",
       temperature: 0,
@@ -56,10 +83,7 @@ export const POST = async (request: Request) => {
                     type: "null",
                     description: "JSON null value if there is no answer or unsure",
                   },
-                  {
-                    type: "number",
-                    description: "JSON Numeric value answering the question",
-                  },
+                  valueSchema,
                 ],
               },
               note: {
@@ -73,7 +97,6 @@ export const POST = async (request: Request) => {
       ],
     })
     try {
-      console.log(chatCompletion.data.choices[0].message?.function_call?.arguments)
       const data = responseSchema.parse(
         JSON.parse(
           chatCompletion.data.choices[0].message?.function_call?.arguments?.replace(

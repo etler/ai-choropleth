@@ -5,6 +5,7 @@ import { Topology } from "topojson-specification"
 import * as GeoJson from "geojson"
 import Legend from "./colorLegend.js"
 import worldJson from "./world.json"
+import { RequestSchema as MapDataRequestSchema } from "@/app/api/map-data/route.js"
 
 // @ts-ignore
 const world = worldJson as Topology
@@ -18,10 +19,15 @@ const countrymesh = topojson.mesh(world, world.objects.countries, (a, b) => a !=
 
 export type Datum = {
   country: string
-  value: number | "loading" | "error" | undefined
+  value: number | string | boolean | "loading" | "error" | undefined
+  note?: string
 }
 
-const generateMap = (title?: string, data: Datum[] = []) => {
+const generateMap = (
+  schema?: MapDataRequestSchema["schema"],
+  title?: string,
+  data: Datum[] = []
+) => {
   // Specify the chart’s dimensions.
   const width = 928
   const marginTop = 46
@@ -39,6 +45,7 @@ const generateMap = (title?: string, data: Datum[] = []) => {
 
   // Index the values and create the color scale.
   const rawValuemap = new Map(data.map(({ country, value }) => [country, value]))
+  const noteValuemap = new Map(data.map(({ country, note }) => [country, note]))
   const valuemap = new Map(
     data.map(({ country, value }) => [country, typeof value === "number" ? value : NaN])
   )
@@ -54,7 +61,7 @@ const generateMap = (title?: string, data: Datum[] = []) => {
     .attr("style", "max-width: 100%; height: auto;")
 
   // Append the legend.
-  if (title) {
+  if (title && schema?.type === "number") {
     svg
       .append("g")
       .attr("transform", "translate(20,0)")
@@ -79,21 +86,36 @@ const generateMap = (title?: string, data: Datum[] = []) => {
       const value = rawValuemap.get(d.properties?.name)
       switch (value) {
         case undefined:
-          return "#000000"
+          return "#FFFFFF"
         case "loading":
-          return "#666666"
+          return "#BBBBBB"
         case "error":
           return "#990000"
         case NaN:
-          return "#FFFFFF"
+          return "#000000"
+        case true:
+          return "#FF0000"
+        case false:
+          return "#00FF00"
         default:
-          return color(value)
+          if (typeof value === "number") {
+            return color(value)
+          }
+          if (typeof value === "string" && schema?.type === "enum") {
+            debugger
+            const enumColors = ["#FF0000", "#00FF00", "#0000FF", "#FFFF", "#00FFFF"]
+            return enumColors[schema.enumChoices.indexOf(value)]
+          }
+          return "#000000"
       }
     })
     .attr("d", path)
+    .attr("stroke-width", "0.1")
+    .attr("stroke", "#999999")
     .append("title")
     .text((d) => {
       const value = rawValuemap.get(d.properties?.name)
+      const note = noteValuemap.get(d.properties?.name)
       const displayValue =
         value === undefined
           ? "No Data"
@@ -104,7 +126,7 @@ const generateMap = (title?: string, data: Datum[] = []) => {
           : Number.isNaN(value)
           ? "Unknown"
           : value
-      return `${d.properties?.name}\n${displayValue}`
+      return `${d.properties?.name}\n${displayValue}\n${note}`
     })
 
   // Add a white mesh.
