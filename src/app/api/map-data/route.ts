@@ -3,9 +3,6 @@ import { Configuration, CreateChatCompletionResponse, OpenAIApi } from "openai"
 import { NextResponse } from "next/server"
 import getCache from "@/utils/getCache"
 
-type Models = "gpt-4" | "gpt-3.5-turbo"
-const model: Models = "gpt-4"
-
 const cache = getCache()
 
 const promiseMap: Record<string, CreateChatCompletionResponse> = {}
@@ -15,7 +12,9 @@ const configuration = new Configuration({
 })
 const openai = new OpenAIApi(configuration)
 
+const modelSchema = z.union([z.literal("gpt-4"), z.literal("gpt-3.5-turbo")])
 const requestSchema = z.object({
+  model: modelSchema,
   question: z.string(),
   country: z.string(),
   schema: z.discriminatedUnion("type", [
@@ -24,6 +23,8 @@ const requestSchema = z.object({
     z.object({ type: z.literal("enum"), enumChoices: z.array(z.string()) }),
   ]),
 })
+
+export type OpenAiModels = z.infer<typeof modelSchema>
 
 export type RequestSchema = z.infer<typeof requestSchema>
 
@@ -59,12 +60,12 @@ const getValueSchema = (schema: RequestSchema["schema"]) => {
 export const POST = async (request: Request) => {
   try {
     const requestJson = await request.json()
-    const queryKey = model + JSON.stringify(requestJson).replace(/\W/g, "").toLowerCase()
+    const queryKey = JSON.stringify(requestJson).replace(/\W/g, "").toLowerCase()
     const cachedResponse = await cache.get(queryKey)
     if (cachedResponse) {
       return NextResponse.json(JSON.parse(cachedResponse))
     }
-    const { question, country, schema } = requestSchema.parse(requestJson)
+    const { model, question, country, schema } = requestSchema.parse(requestJson)
     const valueSchema = getValueSchema(schema)
     const chatCompletionPromise =
       promiseMap[queryKey] ||

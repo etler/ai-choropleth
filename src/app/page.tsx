@@ -8,6 +8,7 @@ import world from "@/utils/world.json"
 import {
   RequestSchema as MapDataRequestSchema,
   ResponseSchema as MapDataResponseSchema,
+  OpenAiModels,
 } from "@/app/api/map-data/route"
 import {
   RequestSchema as ClassifierRequestSchema,
@@ -36,6 +37,8 @@ export default function Home() {
 
 export const Container: React.FC = () => {
   const [question, setQuestion] = useState<string | undefined>()
+  const [model, setModel] = useState<OpenAiModels>("gpt-3.5-turbo")
+  console.log("🔍 :: model:", model)
   const inputRef = useRef<HTMLInputElement>(null)
   const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
     // Prevent the browser from reloading the page
@@ -51,41 +54,59 @@ export const Container: React.FC = () => {
         </label>
         <button type="submit">Start</button>
       </form>
-      <Map question={question} />
+      <Map question={question} model={model} />
+      <form className={styles.selector}>
+        <label className={styles.option}>
+          <input
+            type="radio"
+            value="gpt-3.5-turbo"
+            onChange={() => setModel("gpt-3.5-turbo")}
+            checked={model === "gpt-3.5-turbo"}
+          />
+          GPT-3.5
+        </label>
+        <label className={styles.option}>
+          <input
+            type="radio"
+            value="gpt-4"
+            onChange={() => setModel("gpt-4")}
+            checked={model === "gpt-4"}
+          />
+          GPT-4
+        </label>
+      </form>
     </>
   )
 }
 
 const fetchQuestionClass = cache(
-  async (question: string | undefined): Promise<ClassifierResponseSchema> => {
-    if (question === undefined) {
+  async (request: ClassifierRequestSchema | undefined): Promise<ClassifierResponseSchema> => {
+    if (request === undefined) {
       Promise.reject(new Error("question undefined"))
     }
-    const body = { question }
-    const response = await fetch("/api/classifier", { method: "POST", body: JSON.stringify(body) })
+    const response = await fetch("/api/classifier", {
+      method: "POST",
+      body: JSON.stringify(request),
+    })
     return await response.json()
   }
 )
 const fetchCountryAnswer = cache(
-  async (
-    question: string,
-    country: string,
-    schema: MapDataRequestSchema["schema"]
-  ): Promise<MapDataResponseSchema> => {
-    const body = { question, country, schema }
-    const response = await fetch("/api/map-data", { method: "POST", body: JSON.stringify(body) })
+  async (request: MapDataRequestSchema): Promise<MapDataResponseSchema> => {
+    const response = await fetch("/api/map-data", { method: "POST", body: JSON.stringify(request) })
     return await response.json()
   }
 )
 
 interface MapProps {
+  model: OpenAiModels
   question?: string
 }
 
-const Map: React.FC<MapProps> = ({ question }: MapProps) => {
+const Map: React.FC<MapProps> = ({ model, question }: MapProps) => {
   const schema = useQuery({
     queryKey: [question],
-    queryFn: () => fetchQuestionClass(question),
+    queryFn: () => fetchQuestionClass(question ? { question } : undefined),
     enabled: question !== undefined && question !== "",
   })
   const results = useQueries({
@@ -93,7 +114,7 @@ const Map: React.FC<MapProps> = ({ question }: MapProps) => {
       question && schema.data
         ? countries.map((country) => ({
             queryKey: [question, country],
-            queryFn: () => fetchCountryAnswer(question, country, schema.data),
+            queryFn: () => fetchCountryAnswer({ model, question, country, schema: schema.data }),
           }))
         : [],
   })

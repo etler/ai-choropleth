@@ -5,3 +5,11 @@
   padding: 6rem;
   min-height: 100vh;
 }
+.selector {
+  display: flex;
+  column-gap: 20px;
+}
+.option {
+  display: flex;
+  column-gap: 3px;
+}
