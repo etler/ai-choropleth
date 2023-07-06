@@ -3,7 +3,13 @@
 import styles from "./page.module.css"
 import generateMap, { Datum } from "@/utils/generateMap"
 import { FormEventHandler, cache, useEffect, useRef, useState } from "react"
-import { QueryClient, QueryClientProvider, useQueries, useQuery } from "@tanstack/react-query"
+import {
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+  useQueries,
+  useQuery,
+} from "@tanstack/react-query"
 import world from "@/utils/world.json"
 import {
   RequestSchema as MapDataRequestSchema,
@@ -18,6 +24,7 @@ import {
 const countries = world.objects.countries.geometries.map((geometry) => geometry.properties.name)
 
 const queryClient = new QueryClient({
+  queryCache: new QueryCache(),
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
@@ -38,7 +45,6 @@ export default function Home() {
 export const Container: React.FC = () => {
   const [question, setQuestion] = useState<string | undefined>()
   const [model, setModel] = useState<OpenAiModels>("gpt-3.5-turbo")
-  console.log("🔍 :: model:", model)
   const inputRef = useRef<HTMLInputElement>(null)
   const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
     // Prevent the browser from reloading the page
@@ -113,7 +119,7 @@ const Map: React.FC<MapProps> = ({ model, question }: MapProps) => {
     queries:
       question && schema.data
         ? countries.map((country) => ({
-            queryKey: [question, country],
+            queryKey: [model, question, country],
             queryFn: () => fetchCountryAnswer({ model, question, country, schema: schema.data }),
           }))
         : [],
