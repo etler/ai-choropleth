@@ -27,8 +27,10 @@
   color: white;
   background-color: #023047;
   font-weight: bold;
+  cursor: pointer;
 }
 .form {
+  margin: 20px 0;
   width: 600px;
   max-width: 100%;
   display: flex;
