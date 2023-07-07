@@ -1455,12 +1455,6 @@
         },
         {
           "type": "MultiPolygon",
-          "arcs": [[[1351]], [[1352]], [[1353]]],
-          "id": "260",
-          "properties": { "name": "Fr. S. Antarctic Lands" }
-        },
-        {
-          "type": "MultiPolygon",
           "arcs": [
             [[-379, -766, -553, 1357]],
             [[1358]],
